@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Transcript Collector</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      padding: 40px;
+      max-width: 640px;
+      width: 100%;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .logo .mic-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .logo .mic-icon svg { fill: white; width: 30px; height: 30px; }
+
+    h1 {
+      font-size: 26px;
+      color: #2d2d2d;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+      margin-top: 6px;
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"], input[type="email"], textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e8e8e8;
+      border-radius: 10px;
+      font-size: 15px;
+      color: #333;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #667eea;
+    }
+
+    .record-area {
+      text-align: center;
+      margin: 28px 0 20px;
+    }
+
+    .record-btn {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .record-btn:hover { transform: scale(1.05); }
+
+    .record-btn.recording {
+      background: linear-gradient(135deg, #f5576c, #f093fb);
+      animation: pulse 1.4s infinite;
+      box-shadow: 0 6px 20px rgba(245, 87, 108, 0.5);
+    }
+
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(245, 87, 108, 0.5); }
+      70%  { box-shadow: 0 0 0 18px rgba(245, 87, 108, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 87, 108, 0); }
+    }
+
+    .record-btn svg { fill: white; width: 38px; height: 38px; }
+
+    .record-status {
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      letter-spacing: 0.3px;
+    }
+
+    .record-status.active { color: #f5576c; }
+
+    .transcript-box {
+      background: #f8f9ff;
+      border: 2px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 14px 16px;
+      min-height: 110px;
+      font-size: 15px;
+      color: #333;
+      line-height: 1.6;
+      margin-bottom: 6px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .transcript-hint {
+      font-size: 12px;
+      color: #bbb;
+      margin-bottom: 18px;
+    }
+
+    .char-count {
+      font-size: 12px;
+      color: #aaa;
+      text-align: right;
+      margin-bottom: 18px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-download {
+      background: #f0f4ff;
+      color: #667eea;
+      border: 2px solid #d0d9ff;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-banner {
+      display: none;
+      margin-top: 18px;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .status-banner.success {
+      background: #e6f9f0;
+      color: #1a7a47;
+      border: 1.5px solid #a8e6c8;
+      display: block;
+    }
+
+    .status-banner.error {
+      background: #fff0f0;
+      color: #c0392b;
+      border: 1.5px solid #f5b8b8;
+      display: block;
+    }
+
+    .status-banner.loading {
+      background: #f0f4ff;
+      color: #667eea;
+      border: 1.5px solid #c9d5ff;
+      display: block;
+    }
+
+    .browser-warning {
+      background: #fff8e1;
+      border: 1.5px solid #ffe082;
+      color: #7a5c00;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1.5px solid #f0f0f0;
+      margin: 24px 0;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: #ccc;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 28px 20px; }
+      .btn-row { flex-direction: column; }
+      h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <div class="mic-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V20H9v2h6v-2h-2v-2.07A7 7 0 0 0 19 11h-2z"/></svg>
+    </div>
+    <h1>Voice Transcript Collector</h1>
+    <p class="subtitle">Record your voice — we'll transcribe it automatically</p>
+  </div>
+
+  <div class="browser-warning" id="browserWarning">
+    ⚠️ Your browser doesn't support voice recognition. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on a desktop or Android device.
+  </div>
+
+  <div class="form-group">
+    <label for="userName">Your Name <span style="color:#bbb;font-weight:400;">(optional)</span></label>
+    <input type="text" id="userName" placeholder="e.g. Priya Sharma" autocomplete="name" />
+  </div>
+
+  <div class="form-group">
+    <label for="userEmail">Your Email <span style="color:#bbb;font-weight:400;">(optional)</span></label>
+    <input type="email" id="userEmail" placeholder="e.g. priya@example.com" autocomplete="email" />
+  </div>
+
+  <hr class="divider" />
+
+  <div class="record-area">
+    <button class="record-btn" id="recordBtn" title="Click to start / stop recording">
+      <svg id="micIcon" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V20H9v2h6v-2h-2v-2.07A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <div class="record-status" id="recordStatus">Click the mic to start recording</div>
+  </div>
+
+  <div class="form-group">
+    <label>Live Transcript</label>
+    <div class="transcript-box" id="transcriptBox">Your transcript will appear here as you speak…</div>
+    <div class="transcript-hint">Speak clearly • Works best in Chrome / Edge • English by default</div>
+    <div class="char-count" id="charCount">0 characters</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-submit" id="submitBtn" disabled>✅ Submit to Google Sheets</button>
+    <button class="btn btn-download" id="downloadBtn" disabled>⬇️ Download Excel</button>
+  </div>
+
+  <div class="status-banner" id="statusBanner"></div>
+
+  <p class="footer-note">Your voice is never stored — only the text transcript is saved.</p>
+</div>
+
+<script>
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzw_sEzZJyFSqMR71Ia9E7vl7i5wSBtzsEw5rgpn4hoS2qKuUsTxetPm8xcQXYMvHSE3Q/exec";
+
+  const recordBtn      = document.getElementById('recordBtn');
+  const micIcon        = document.getElementById('micIcon');
+  const recordStatus   = document.getElementById('recordStatus');
+  const transcriptBox  = document.getElementById('transcriptBox');
+  const charCount      = document.getElementById('charCount');
+  const submitBtn      = document.getElementById('submitBtn');
+  const downloadBtn    = document.getElementById('downloadBtn');
+  const statusBanner   = document.getElementById('statusBanner');
+  const browserWarning = document.getElementById('browserWarning');
+
+  let recognition = null;
+  let isRecording = false;
+  let finalTranscript = '';
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    browserWarning.style.display = 'block';
+    recordBtn.disabled = true;
+  } else {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      isRecording = true;
+      recordBtn.classList.add('recording');
+      recordStatus.textContent = '🔴 Recording… speak now';
+      recordStatus.classList.add('active');
+      micIcon.innerHTML = '<path d="M6 6h12v12H6z"/>';
+      if (finalTranscript === '') transcriptBox.textContent = '';
+    };
+
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += text + ' ';
+        } else {
+          interim += text;
+        }
+      }
+      transcriptBox.textContent = finalTranscript + interim;
+      updateCharCount();
+      updateButtons();
+    };
+
+    recognition.onerror = (event) => {
+      let msg = 'Error: ' + event.error;
+      if (event.error === 'not-allowed') {
+        msg = '⚠️ Microphone access denied. Please allow microphone in your browser settings.';
+      } else if (event.error === 'no-speech') {
+        msg = 'No speech detected. Click the mic to try again.';
+      }
+      recordStatus.textContent = msg;
+      stopRecording();
+    };
+
+    recognition.onend = () => {
+      if (isRecording) {
+        try { recognition.start(); } catch(e) {}
+      }
+    };
+  }
+
+  recordBtn.addEventListener('click', () => {
+    if (!isRecording) {
+      finalTranscript = '';
+      transcriptBox.textContent = '';
+      updateButtons();
+      try {
+        recognition.start();
+      } catch(e) {
+        showStatus('Could not start microphone. Please check browser permissions.', 'error');
+      }
+    } else {
+      stopRecording();
+    }
+  });
+
+  function stopRecording() {
+    isRecording = false;
+    if (recognition) { try { recognition.stop(); } catch(e) {} }
+    recordBtn.classList.remove('recording');
+    recordStatus.textContent = finalTranscript.trim()
+      ? '✅ Recording stopped. Review your transcript below.'
+      : 'Recording stopped. Click the mic to try again.';
+    recordStatus.classList.remove('active');
+    micIcon.innerHTML = '<path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V20H9v2h6v-2h-2v-2.07A7 7 0 0 0 19 11h-2z"/>';
+    updateButtons();
+  }
+
+  function updateCharCount() {
+    const len = (finalTranscript + '').trim().length;
+    charCount.textContent = len + ' character' + (len !== 1 ? 's' : '');
+  }
+
+  function updateButtons() {
+    const hasText = finalTranscript.trim().length > 0;
+    submitBtn.disabled = !hasText;
+    downloadBtn.disabled = !hasText;
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const transcript = finalTranscript.trim();
+    if (!transcript) return;
+
+    const name  = document.getElementById('userName').value.trim() || 'Anonymous';
+    const email = document.getElementById('userEmail').value.trim() || '';
+    const now   = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+    showStatus('Submitting…', 'loading');
+    submitBtn.disabled = true;
+
+    const payload = JSON.stringify({ name, email, transcript, timestamp: now });
+
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      });
+      showStatus('🎉 Transcript submitted successfully! Thank you.', 'success');
+      finalTranscript = '';
+      transcriptBox.textContent = 'Your transcript will appear here as you speak…';
+      document.getElementById('userName').value = '';
+      document.getElementById('userEmail').value = '';
+      updateCharCount();
+      updateButtons();
+    } catch (err) {
+      showStatus('❌ Submission failed. Please try downloading your transcript instead.', 'error');
+      submitBtn.disabled = false;
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    const transcript = finalTranscript.trim();
+    if (!transcript) return;
+
+    const name  = document.getElementById('userName').value.trim() || 'Anonymous';
+    const email = document.getElementById('userEmail').value.trim() || '';
+    const now   = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+    const wb = XLSX.utils.book_new();
+    const wsData = [
+      ['Timestamp', 'Name', 'Email', 'Transcript'],
+      [now, name, email, transcript]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 28 }, { wch: 80 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Transcript');
+
+    const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+    XLSX.writeFile(wb, 'transcript_' + safeName + '_' + Date.now() + '.xlsx');
+  });
+
+  function showStatus(msg, type) {
+    statusBanner.textContent = msg;
+    statusBanner.className = 'status-banner ' + type;
+  }
+</script>
+</body>
+</html>
